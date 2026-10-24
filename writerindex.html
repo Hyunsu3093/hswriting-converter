@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>손글씨 변환기</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e6e7ec;--paper:#f7f6e9;--rule:#d8d7c6;--ink:#15171d;--btn:#2f4a7d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font:16px/1.5 system-ui,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:var(--ink)}
+main{max-width:940px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:14px}
+textarea{width:100%;min-height:150px;padding:12px 14px;border:1px solid #b9bcc7;border-radius:6px;font:inherit;resize:vertical;background:#fff;color:var(--ink)}
+button{justify-self:start;padding:10px 18px;border:0;border-radius:6px;background:var(--btn);color:#fff;font:inherit;cursor:pointer}
+button:focus-visible,textarea:focus-visible{outline:3px solid #f0a020;outline-offset:2px}
+canvas{width:100%;height:auto;display:block;border:1px solid #c9cad2;background:var(--paper)}
+</style></head><body><main>
+<textarea id="t" aria-label="변환할 텍스트">실험 결과 및 토의
+크로마토그래피로 색소 혼합물을 분리했다.</textarea>
+<button id="b">PNG로 저장</button>
+<canvas id="c" aria-label="손글씨 미리보기"></canvas>
+</main>
+<script>
+const ta=document.getElementById('t'),cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=900,L=64,M=56,D=2,FONT='"Nanum Pen Script",cursive';
+const rnd=i=>{let t=(i+1)*0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v);
+function draw(){
+  let x=M,y=M+L,k=0;const items=[];
+  ctx.font=L*.95+'px '+FONT;
+  for(const c of ta.value){
+    if(c==='\n'){x=M;y+=L;continue}
+    const w=c===' '?L*.3:ctx.measureText(c).width*.95;
+    if(x+w>W-M){x=M;y+=L}
+    if(c!==' ')items.push([c,x,y,k]);
+    x+=w;k++;
+  }
+  const h=Math.max(600,y+L*1.5);
+  cv.width=W*D;cv.height=h*D;ctx.setTransform(D,0,0,D,0,0);
+  ctx.fillStyle=css('--paper');ctx.fillRect(0,0,W,h);
+  ctx.strokeStyle=css('--rule');ctx.lineWidth=1;
+  for(let r=M+L+8.5;r<h;r+=L){ctx.beginPath();ctx.moveTo(24,r);ctx.lineTo(W-24,r);ctx.stroke()}
+  ctx.fillStyle=css('--ink');ctx.font=L*.95+'px '+FONT;
+  for(const [c,px,py,i] of items){
+    const dy=(rnd(i+7)-.5)*4,rot=(rnd(i+13)-.5)*.04,sc=1+(rnd(i+21)-.5)*.08;
+    ctx.save();ctx.translate(px,py+dy);ctx.rotate(rot);ctx.scale(sc,sc);ctx.fillText(c,0,0);ctx.restore();
+  }
+}
+ta.addEventListener('input',draw);
+document.getElementById('b').onclick=()=>cv.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='handwriting.png';a.click()});
+(document.fonts?document.fonts.load('40px '+FONT,'가'):Promise.resolve()).catch(()=>{}).then(draw);
+</script></body></html>
