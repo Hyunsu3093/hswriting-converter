@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>손글씨 변환기</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#d9dbe1;--ink:#15171d;--btn:#2f4a7d;--warn:#b3261e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font:15px/1.5 system-ui,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:var(--ink)}
+.app{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:20px;max-width:1200px;margin:0 auto;padding:16px;align-items:start}
+.side{position:sticky;top:16px;display:grid;gap:12px;background:#fff;padding:14px;border-radius:8px}
+label{display:grid;gap:4px}
+textarea{width:100%;height:50vh;min-height:220px;padding:10px 12px;border:1px solid #b9bcc7;border-radius:6px;font:inherit;resize:vertical}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{padding:9px 14px;border:0;border-radius:6px;background:var(--btn);color:#fff;font:inherit;cursor:pointer}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:3px solid #f0a020;outline-offset:2px}
+#s{margin:0}#s.over{color:var(--warn);font-weight:600}
+#pages{display:grid;gap:18px;justify-items:center}
+canvas{width:100%;max-width:794px;aspect-ratio:210/297;height:auto;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25)}
+@media (max-width:760px){.app{grid-template-columns:1fr}.side{position:static}}
+@media print{@page{size:A4;margin:0}body{background:#fff}.side{display:none}.app{display:block;padding:0;max-width:none}#pages{display:block}
+canvas{display:block;width:210mm;height:297mm;max-width:none;box-shadow:none;break-after:page}canvas:last-child{break-after:auto}}
+</style></head><body>
+<div class="app">
+<section class="side">
+<label>텍스트<textarea id="t">크로마토그래피
+분리 원리: 정지상과 이동상에 대한 친화도 차이
+Rf = 시료 이동 거리 ÷ 용매 이동 거리</textarea></label>
+<label>글자 크기 <span id="v"></span><input id="z" type="range" min="10" max="32" value="18"></label>
+<p id="s"></p>
+<div class="btns"><button id="p">인쇄 · PDF 저장</button><button id="b">PNG 저장</button></div>
+</section>
+<section id="pages" aria-label="A4 미리보기"></section>
+</div>
+<script>
+const $=id=>document.getElementById(id),ta=$('t'),z=$('z'),pagesEl=$('pages');
+const PW=794,PH=1123,M=40,CW=2481,CH=3508,FONT='"Nanum Pen Script",cursive';
+const rnd=i=>{let t=(i+1)*0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296};
+const mc=document.createElement('canvas').getContext('2d');
+function layout(f){
+  const lh=f*1.35;mc.font=f+'px '+FONT;
+  const pages=[[]];let x=M,y=M+f,k=0;
+  const nl=()=>{x=M;y+=lh;if(y>PH-M){pages.push([]);y=M+f}};
+  for(const c of ta.value){
+    if(c==='\n'){nl();k++;continue}
+    const w=c===' '?f*.3:mc.measureText(c).width*.95;
+    if(x+w>PW-M)nl();
+    if(c!==' ')pages[pages.length-1].push([c,x,y,k]);
+    x+=w;k++;
+  }
+  return pages;
+}
+function draw(){
+  const f=+z.value;$('v').textContent=f+'px';
+  const pg=layout(f);
+  pagesEl.replaceChildren(...pg.map(items=>{
+    const cv=document.createElement('canvas');cv.width=CW;cv.height=CH;
+    const g=cv.getContext('2d');g.scale(CW/PW,CH/PH);
+    g.fillStyle='#fff';g.fillRect(0,0,PW,PH);
+    g.fillStyle='#15171d';g.font=f+'px '+FONT;
+    for(const [c,x,y,i] of items){
+      const dy=(rnd(i+7)-.5)*f*.2,rot=(rnd(i+13)-.5)*.04,sc=1+(rnd(i+21)-.5)*.08;
+      g.save();g.translate(x,y+dy);g.rotate(rot);g.scale(sc,sc);g.fillText(c,0,0);g.restore();
+    }
+    return cv;
+  }));
+  const s=$('s');
+  s.className=pg.length>2?'over':'';
+  s.textContent=pg.length>2?`${pg.length}쪽 · 2쪽을 넘었어요. 글자 크기나 내용을 줄여주세요.`:`${pg.length}쪽 · 양면 A4는 2쪽까지`;
+}
+ta.addEventListener('input',draw);z.addEventListener('input',draw);
+$('p').onclick=()=>print();
+$('b').onclick=()=>[...pagesEl.children].forEach((cv,i)=>cv.toBlob(bl=>{const a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download=`handwriting-${i+1}.png`;a.click()}));
+(document.fonts?document.fonts.load('40px '+FONT,'가'):Promise.resolve()).catch(()=>{}).then(draw);
+</script></body></html>
